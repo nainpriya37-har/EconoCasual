@@ -1,0 +1,6 @@
+metric,value
+rows_before_cleaning,2000
+rows_after_cleaning,2000
+rows_removed,0
+duplicate_customer_ids_after_cleaning,0
+remaining_missing_cells,0
