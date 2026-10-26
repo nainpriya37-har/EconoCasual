@@ -1,0 +1,18 @@
+digraph EconoCausal {
+    rankdir=TB;
+    "age";
+    "past_purchases";
+    "loyalty_score";
+    "previous_spend";
+    "discount";
+    "purchased";
+    "age" -> "discount";
+    "age" -> "purchased";
+    "past_purchases" -> "discount";
+    "past_purchases" -> "purchased";
+    "loyalty_score" -> "discount";
+    "loyalty_score" -> "purchased";
+    "previous_spend" -> "discount";
+    "previous_spend" -> "purchased";
+    "discount" -> "purchased";
+}
