@@ -1,7 +1,9 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Papa from "papaparse";
 import "./App.css";
+
+const API_URL = "http://127.0.0.1:8000";
 
 function App() {
   const [fileName, setFileName] = useState("");
@@ -10,6 +12,34 @@ function App() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [customers, setCustomers] = useState([]);
+  const [apiError, setApiError] = useState("");
+  const [apiLoading, setApiLoading] = useState(true);
+
+  // Fetch customer-level causal effects from the Python API.
+  useEffect(() => {
+    fetch(`${API_URL}/api/customer-effects`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(
+            "Customer effects are unavailable. Run the causal training script first."
+          );
+        }
+        return response.json();
+      })
+      .then((data) => {
+        setCustomers(data);
+        setApiError("");
+      })
+      .catch((err) => {
+        setApiError(err.message);
+      })
+      .finally(() => {
+        setApiLoading(false);
+      });
+  }, []);
+
+  // Upload and validate the customer campaign CSV.
   function handleFileUpload(event) {
     const file = event.target.files?.[0];
 
@@ -52,9 +82,7 @@ function App() {
         );
 
         if (result.errors.length > 0) {
-          setError(
-            `CSV parsing issue: ${result.errors[0].message}`
-          );
+          setError(`CSV parsing issue: ${result.errors[0].message}`);
           setLoading(false);
           return;
         }
@@ -89,12 +117,21 @@ function App() {
     return (
       total +
       columns.filter(
-        (column) => row[column] === null ||
+        (column) =>
+          row[column] === null ||
           row[column] === undefined ||
           String(row[column]).trim() === ""
       ).length
     );
   }, 0);
+
+  // Find treatment-effect columns dynamically.
+  const effectColumns =
+    customers.length > 0
+      ? Object.keys(customers[0]).filter((column) =>
+          column.startsWith("effect_")
+        )
+      : [];
 
   return (
     <div className="app">
@@ -117,13 +154,16 @@ function App() {
           <a className="nav-item" href="#preview">
             Customer Data
           </a>
+          <a className="nav-item" href="#effects">
+            Causal Effects
+          </a>
           <a className="nav-item" href="#about">
             About Project
           </a>
         </nav>
 
         <div className="sidebar-footer">
-          Week 1 · Foundation
+          Week 2 · Causal ML
         </div>
       </aside>
 
@@ -140,15 +180,15 @@ function App() {
           <div>
             <h2>Welcome to EconoCausal</h2>
             <p>
-              Prepare your customer campaign data for causal
-              analysis and personalized discount optimization.
+              Analyze customer campaign data, estimate discount
+              effects, and explore personalized discount strategies.
             </p>
           </div>
         </section>
 
         <section className="stats-grid">
           <div className="stat-card">
-            <p>Customers Loaded</p>
+            <p>Uploaded Customers</p>
             <h2>{rows.length.toLocaleString()}</h2>
             <span>Records in uploaded CSV</span>
           </div>
@@ -164,6 +204,12 @@ function App() {
             <h2>{missingCells.toLocaleString()}</h2>
             <span>In uploaded records</span>
           </div>
+
+          <div className="stat-card">
+            <p>Effect Records</p>
+            <h2>{customers.length.toLocaleString()}</h2>
+            <span>Loaded from the causal API</span>
+          </div>
         </section>
 
         <section className="panel" id="upload">
@@ -171,8 +217,8 @@ function App() {
             <div>
               <h2>Upload Campaign Dataset</h2>
               <p>
-                Select the customer_campaigns.csv file generated
-                by the Python pipeline.
+                Select customer_campaigns.csv to preview and validate
+                your customer data.
               </p>
             </div>
           </div>
@@ -226,14 +272,11 @@ function App() {
                     ))}
                   </tr>
                 </thead>
-
                 <tbody>
                   {rows.slice(0, 10).map((row, index) => (
                     <tr key={row.customer_id || index}>
                       {columns.map((column) => (
-                        <td key={column}>
-                          {row[column] ?? ""}
-                        </td>
+                        <td key={column}>{row[column] ?? ""}</td>
                       ))}
                     </tr>
                   ))}
@@ -243,18 +286,88 @@ function App() {
           )}
         </section>
 
+        <section className="panel" id="effects">
+          <div className="section-heading">
+            <div>
+              <h2>Customer-Level Treatment Effects</h2>
+              <p>
+                Estimated purchase-probability differences for
+                alternative discount options versus the baseline.
+              </p>
+            </div>
+          </div>
+
+          {apiLoading && <p>Loading customer treatment effects...</p>}
+
+          {!apiLoading && apiError && (
+            <div className="error-message" role="alert">
+              {apiError}
+              <p>
+                Ensure the Python API is running and the training
+                script has generated outputs/customer_effects.csv.
+              </p>
+            </div>
+          )}
+
+          {!apiLoading && !apiError && customers.length === 0 && (
+            <p>No customer effect records are available yet.</p>
+          )}
+
+          {customers.length > 0 && (
+            <>
+              <p>
+                Loaded {customers.length} customer records and{" "}
+                {effectColumns.length} estimated effect columns.
+              </p>
+
+              <div className="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      {Object.keys(customers[0]).map((key) => (
+                        <th key={key}>{key}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customers.slice(0, 50).map((customer, index) => (
+                      <tr key={index}>
+                        {Object.entries(customer).map(([key, value]) => (
+                          <td key={key}>
+                            {typeof value === "number" &&
+                            key.startsWith("effect_")
+                              ? value.toFixed(4)
+                              : String(value ?? "")}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <p>
+                Showing up to 50 of {customers.length} customer records.
+                Positive effects indicate estimated purchase lift;
+                negative effects indicate estimated decrease.
+              </p>
+            </>
+          )}
+        </section>
+
         <section className="panel" id="about">
-          <h2>Week 1 Project Objectives</h2>
+          <h2>Project Objectives</h2>
           <div className="objectives">
             <p>✓ Customer data preparation and cleaning</p>
             <p>✓ Exploratory data analysis</p>
             <p>✓ Causal DAG definition using DoWhy</p>
-            <p>✓ React dashboard and CSV preview</p>
+            <p>✓ Causal model training with EconML</p>
+            <p>✓ React dashboard connected to the Python API</p>
           </div>
           <p className="disclaimer">
-            This is an initial prototype. Customer-level causal
-            estimates and budget optimization will be added in
-            subsequent development stages.
+            Treatment effects are model estimates, not guarantees of
+            customer behavior. Purchase lift alone does not establish
+            profitability.
           </p>
         </section>
 
