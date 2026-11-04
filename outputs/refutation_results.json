@@ -1,0 +1,15 @@
+{
+    "comparison": "\u20b910 discount vs \u20b90 discount",
+    "sample_size": 1111,
+    "control_customers": 406,
+    "treated_customers": 705,
+    "original_estimate": 0.0009000900090009,
+    "refutations": {
+        "placebo_treatment": {
+            "error": "This solver needs samples of at least 2 classes in the data, but the data contains only one class: np.int32(0)"
+        },
+        "random_common_cause": {
+            "error": "add_random_common_cause is not an existing causal refuter."
+        }
+    }
+}
