@@ -1,0 +1,27 @@
+{
+    "row_count": 2000,
+    "missing_values": {
+        "customer_id": 0,
+        "age": 0,
+        "past_purchases": 0,
+        "loyalty_score": 0,
+        "previous_spend": 0,
+        "discount": 0,
+        "purchased": 0,
+        "revenue": 0
+    },
+    "treatment_distribution": {
+        "0": 406,
+        "10": 705,
+        "20": 889
+    },
+    "outlier_counts": {
+        "age": 0,
+        "past_purchases": 42,
+        "loyalty_score": 0,
+        "previous_spend": 4,
+        "discount": 0,
+        "purchased": 415,
+        "revenue": 16
+    }
+}
