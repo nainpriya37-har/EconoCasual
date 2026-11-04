@@ -1,0 +1,15 @@
+{
+    "number_of_runs": 5,
+    "estimates": [
+        0.00363749999999996,
+        0.009143749999999784,
+        0.002574999999999994,
+        -0.023968750000000094,
+        0.0020937500000001164
+    ],
+    "mean_estimate": -0.001303750000000048,
+    "standard_deviation": 0.011609101090308415,
+    "min_estimate": -0.023968750000000094,
+    "max_estimate": 0.009143749999999784,
+    "interpretation": "Compare estimates across runs. Large variation may indicate instability."
+}
