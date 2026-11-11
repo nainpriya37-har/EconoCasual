@@ -16,7 +16,11 @@ function App() {
   const [apiError, setApiError] = useState("");
   const [apiLoading, setApiLoading] = useState(true);
 
-  // Fetch customer-level causal effects from the Python API.
+  // Optimization data
+  const [offers, setOffers] = useState([]);
+  const [allocationSummary, setAllocationSummary] = useState(null);
+
+  // Fetch customer effects
   useEffect(() => {
     fetch(`${API_URL}/api/customer-effects`)
       .then((response) => {
@@ -39,7 +43,26 @@ function App() {
       });
   }, []);
 
-  // Upload and validate the customer campaign CSV.
+  // Fetch optimized offers and allocation summary
+  useEffect(() => {
+    fetch(`${API_URL}/api/optimized-offers`)
+      .then((response) => {
+        if (!response.ok) throw new Error("Offers unavailable");
+        return response.json();
+      })
+      .then(setOffers)
+      .catch(console.error);
+
+    fetch(`${API_URL}/api/allocation-summary`)
+      .then((response) => {
+        if (!response.ok) throw new Error("Summary unavailable");
+        return response.json();
+      })
+      .then(setAllocationSummary)
+      .catch(console.error);
+  }, []);
+
+  // Upload and validate CSV
   function handleFileUpload(event) {
     const file = event.target.files?.[0];
 
@@ -125,7 +148,7 @@ function App() {
     );
   }, 0);
 
-  // Find treatment-effect columns dynamically.
+  // Find treatment effect columns
   const effectColumns =
     customers.length > 0
       ? Object.keys(customers[0]).filter((column) =>
@@ -156,6 +179,9 @@ function App() {
           </a>
           <a className="nav-item" href="#effects">
             Causal Effects
+          </a>
+          <a className="nav-item" href="#optimization">
+            Optimization
           </a>
           <a className="nav-item" href="#about">
             About Project
@@ -208,10 +234,11 @@ function App() {
           <div className="stat-card">
             <p>Effect Records</p>
             <h2>{customers.length.toLocaleString()}</h2>
-            <span>Loaded from the causal API</span>
+            <span>Loaded from causal API</span>
           </div>
         </section>
 
+        {/* CSV Upload */}
         <section className="panel" id="upload">
           <div className="section-heading">
             <div>
@@ -250,6 +277,7 @@ function App() {
           )}
         </section>
 
+        {/* Customer Preview */}
         <section className="panel" id="preview">
           <div className="section-heading">
             <div>
@@ -286,6 +314,7 @@ function App() {
           )}
         </section>
 
+        {/* Causal Effects */}
         <section className="panel" id="effects">
           <div className="section-heading">
             <div>
@@ -355,19 +384,110 @@ function App() {
           )}
         </section>
 
+        {/* Optimization Results */}
+        <section className="panel" id="optimization">
+          <div className="section-heading">
+            <div>
+              <h2>Optimized Discount Allocation</h2>
+              <p>
+                Customer-specific discount recommendations generated
+                by the optimization model.
+              </p>
+            </div>
+          </div>
+
+          {offers.length === 0 ? (
+            <p>
+              No optimized offers available. Run the discount
+              optimization script and check the Python API.
+            </p>
+          ) : (
+            <>
+              {allocationSummary && (
+                <div className="stats-grid">
+                  <div className="stat-card">
+                    <p>Total Customers</p>
+                    <h2>
+                      {allocationSummary.total_customers ?? offers.length}
+                    </h2>
+                  </div>
+
+                  <div className="stat-card">
+                    <p>Total Discount Cost</p>
+                    <h2>
+                      {Number(
+                        allocationSummary.total_discount_cost ?? 0
+                      ).toLocaleString()}
+                    </h2>
+                  </div>
+
+                  <div className="stat-card">
+                    <p>Expected Benefit</p>
+                    <h2>
+                      {Number(
+                        allocationSummary.expected_incremental_benefit ?? 0
+                      ).toFixed(2)}
+                    </h2>
+                  </div>
+                </div>
+              )}
+
+              <div className="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Customer ID</th>
+                      <th>Previous Spend</th>
+                      <th>Recommended Discount</th>
+                      <th>Expected Incremental Benefit</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {offers.slice(0, 50).map((offer, index) => (
+                      <tr key={offer.customer_id || index}>
+                        <td>{offer.customer_id}</td>
+                        <td>
+                          {Number(offer.previous_spend).toFixed(2)}
+                        </td>
+                        <td>
+                          {offer.recommended_discount}
+                        </td>
+                        <td>
+                          {Number(
+                            offer.expected_incremental_benefit
+                          ).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <p>
+                Showing up to 50 of {offers.length} optimized customer offers.
+              </p>
+            </>
+          )}
+        </section>
+
+        {/* About Project */}
         <section className="panel" id="about">
           <h2>Project Objectives</h2>
+
           <div className="objectives">
             <p>✓ Customer data preparation and cleaning</p>
             <p>✓ Exploratory data analysis</p>
             <p>✓ Causal DAG definition using DoWhy</p>
             <p>✓ Causal model training with EconML</p>
-            <p>✓ React dashboard connected to the Python API</p>
+            <p>✓ React dashboard connected to Python API</p>
+            <p>✓ Personalized discount optimization</p>
           </div>
+
           <p className="disclaimer">
-            Treatment effects are model estimates, not guarantees of
-            customer behavior. Purchase lift alone does not establish
-            profitability.
+            Treatment effects are model estimates, not guarantees
+            of customer behavior. Purchase lift alone does not
+            establish profitability.
           </p>
         </section>
 

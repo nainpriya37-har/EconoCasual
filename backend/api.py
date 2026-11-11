@@ -72,3 +72,33 @@ def discount_options():
 
     with open(path, encoding="utf-8") as file:
         return json.load(file)
+    
+@app.get("/api/optimized-offers")
+def optimized_offers():
+    path = OUTPUT_DIR / "optimized_offers.csv"
+
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="Run discount optimization first."
+        )
+
+    df = pd.read_csv(path)
+    return df.to_dict(orient="records")
+
+
+@app.get("/api/allocation-summary")
+def allocation_summary():
+    import json
+
+    path = OUTPUT_DIR / "allocation_summary.json"
+
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="Allocation report is not available."
+        )
+
+    with open(path, encoding="utf-8") as file:
+        return json.load(file)
+
