@@ -1,0 +1,7 @@
+{
+    "budget": 1000,
+    "discount_options": [0, 10, 20],
+    "minimum_expected_benefit": 0,
+    "objective": "maximize_expected_incremental_benefit",
+    "benefit_formula": "treatment_effect * previous_spend"
+}
