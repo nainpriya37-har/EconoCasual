@@ -6,60 +6,64 @@ import "./App.css";
 const API_URL = "http://127.0.0.1:8000";
 
 function App() {
+  // CSV upload states
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState([]);
   const [columns, setColumns] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // API states
   const [customers, setCustomers] = useState([]);
-  const [apiError, setApiError] = useState("");
-  const [apiLoading, setApiLoading] = useState(true);
-
-  // Optimization data
   const [offers, setOffers] = useState([]);
   const [allocationSummary, setAllocationSummary] = useState(null);
 
-  // Fetch customer effects
+  const [apiError, setApiError] = useState("");
+  const [apiLoading, setApiLoading] = useState(true);
+
+  // Fetch all dashboard data from FastAPI
   useEffect(() => {
-    fetch(`${API_URL}/api/customer-effects`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(
-            "Customer effects are unavailable. Run the causal training script first."
-          );
+    const fetchDashboardData = async () => {
+      setApiLoading(true);
+      setApiError("");
+
+      try {
+        const [effectsResponse, offersResponse, summaryResponse] =
+          await Promise.all([
+            fetch(`${API_URL}/api/customer-effects`),
+            fetch(`${API_URL}/api/optimized-offers`),
+            fetch(`${API_URL}/api/allocation-summary`),
+          ]);
+
+        if (!effectsResponse.ok) {
+          throw new Error("Unable to fetch customer treatment effects.");
         }
-        return response.json();
-      })
-      .then((data) => {
-        setCustomers(data);
-        setApiError("");
-      })
-      .catch((err) => {
-        setApiError(err.message);
-      })
-      .finally(() => {
+
+        if (!offersResponse.ok) {
+          throw new Error("Unable to fetch optimized discount offers.");
+        }
+
+        if (!summaryResponse.ok) {
+          throw new Error("Unable to fetch allocation summary.");
+        }
+
+        const effectsData = await effectsResponse.json();
+        const offersData = await offersResponse.json();
+        const summaryData = await summaryResponse.json();
+
+        setCustomers(effectsData);
+        setOffers(offersData);
+        setAllocationSummary(summaryData);
+      } catch (err) {
+        setApiError(
+          err.message || "Unable to connect to the Python backend."
+        );
+      } finally {
         setApiLoading(false);
-      });
-  }, []);
+      }
+    };
 
-  // Fetch optimized offers and allocation summary
-  useEffect(() => {
-    fetch(`${API_URL}/api/optimized-offers`)
-      .then((response) => {
-        if (!response.ok) throw new Error("Offers unavailable");
-        return response.json();
-      })
-      .then(setOffers)
-      .catch(console.error);
-
-    fetch(`${API_URL}/api/allocation-summary`)
-      .then((response) => {
-        if (!response.ok) throw new Error("Summary unavailable");
-        return response.json();
-      })
-      .then(setAllocationSummary)
-      .catch(console.error);
+    fetchDashboardData();
   }, []);
 
   // Upload and validate CSV
@@ -136,6 +140,7 @@ function App() {
     });
   }
 
+  // Calculate missing cells in uploaded CSV
   const missingCells = rows.reduce((total, row) => {
     return (
       total +
@@ -148,7 +153,7 @@ function App() {
     );
   }, 0);
 
-  // Find treatment effect columns
+  // Identify treatment effect columns
   const effectColumns =
     customers.length > 0
       ? Object.keys(customers[0]).filter((column) =>
@@ -158,9 +163,11 @@ function App() {
 
   return (
     <div className="app">
+      {/* Sidebar */}
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-icon">E</div>
+
           <div>
             <h2>EconoCausal</h2>
             <p>Marketing Intelligence</p>
@@ -171,18 +178,23 @@ function App() {
           <a className="nav-item active" href="#overview">
             Overview
           </a>
+
           <a className="nav-item" href="#upload">
             Data Upload
           </a>
+
           <a className="nav-item" href="#preview">
             Customer Data
           </a>
+
           <a className="nav-item" href="#effects">
             Causal Effects
           </a>
+
           <a className="nav-item" href="#optimization">
             Optimization
           </a>
+
           <a className="nav-item" href="#about">
             About Project
           </a>
@@ -193,18 +205,22 @@ function App() {
         </div>
       </aside>
 
+      {/* Main Dashboard */}
       <main className="main-content">
         <header className="topbar">
           <div>
             <p className="eyebrow">CAUSAL AI PLATFORM</p>
             <h1 id="overview">Campaign Dashboard</h1>
           </div>
+
           <span className="status">Prototype</span>
         </header>
 
+        {/* Welcome Section */}
         <section className="welcome">
           <div>
             <h2>Welcome to EconoCausal</h2>
+
             <p>
               Analyze customer campaign data, estimate discount
               effects, and explore personalized discount strategies.
@@ -212,6 +228,25 @@ function App() {
           </div>
         </section>
 
+        {/* API Loading and Error Messages */}
+        {apiLoading && (
+          <p className="api-loading">
+            Loading dashboard data from Python backend...
+          </p>
+        )}
+
+        {apiError && (
+          <div className="error-message" role="alert">
+            Backend Error: {apiError}
+
+            <p>
+              Check that FastAPI is running and that the required
+              output CSV files exist.
+            </p>
+          </div>
+        )}
+
+        {/* Dashboard Statistics */}
         <section className="stats-grid">
           <div className="stat-card">
             <p>Uploaded Customers</p>
@@ -243,6 +278,7 @@ function App() {
           <div className="section-heading">
             <div>
               <h2>Upload Campaign Dataset</h2>
+
               <p>
                 Select customer_campaigns.csv to preview and validate
                 your customer data.
@@ -255,6 +291,7 @@ function App() {
             <h3>Choose a CSV file</h3>
             <p>Click here to browse files on your computer.</p>
             <span className="upload-button">Browse CSV</span>
+
             <input
               type="file"
               accept=".csv,text/csv"
@@ -277,11 +314,12 @@ function App() {
           )}
         </section>
 
-        {/* Customer Preview */}
+        {/* Customer Data Preview */}
         <section className="panel" id="preview">
           <div className="section-heading">
             <div>
               <h2>Customer Data Preview</h2>
+
               <p>
                 {rows.length > 0
                   ? `Showing ${Math.min(rows.length, 10)} of ${rows.length} records.`
@@ -300,6 +338,7 @@ function App() {
                     ))}
                   </tr>
                 </thead>
+
                 <tbody>
                   {rows.slice(0, 10).map((row, index) => (
                     <tr key={row.customer_id || index}>
@@ -314,29 +353,18 @@ function App() {
           )}
         </section>
 
-        {/* Causal Effects */}
+        {/* Customer Treatment Effects */}
         <section className="panel" id="effects">
           <div className="section-heading">
             <div>
               <h2>Customer-Level Treatment Effects</h2>
+
               <p>
                 Estimated purchase-probability differences for
                 alternative discount options versus the baseline.
               </p>
             </div>
           </div>
-
-          {apiLoading && <p>Loading customer treatment effects...</p>}
-
-          {!apiLoading && apiError && (
-            <div className="error-message" role="alert">
-              {apiError}
-              <p>
-                Ensure the Python API is running and the training
-                script has generated outputs/customer_effects.csv.
-              </p>
-            </div>
-          )}
 
           {!apiLoading && !apiError && customers.length === 0 && (
             <p>No customer effect records are available yet.</p>
@@ -358,6 +386,7 @@ function App() {
                       ))}
                     </tr>
                   </thead>
+
                   <tbody>
                     {customers.slice(0, 50).map((customer, index) => (
                       <tr key={index}>
@@ -384,11 +413,59 @@ function App() {
           )}
         </section>
 
-        {/* Optimization Results */}
+        {/* Discount Allocation Summary */}
+        <section className="panel" id="summary">
+          <div className="section-heading">
+            <div>
+              <h2>Discount Allocation Summary</h2>
+              <p>
+                Overall results from the discount optimization model.
+              </p>
+            </div>
+          </div>
+
+          {allocationSummary && (
+            <div className="stats-grid">
+              <div className="stat-card">
+                <p>Total Customers</p>
+                <h2>
+                  {Number(
+                    allocationSummary.total_customers ?? 0
+                  ).toLocaleString()}
+                </h2>
+              </div>
+
+              <div className="stat-card">
+                <p>Total Discount Cost</p>
+                <h2>
+                  {Number(
+                    allocationSummary.total_discount_cost ?? 0
+                  ).toLocaleString()}
+                </h2>
+              </div>
+
+              <div className="stat-card">
+                <p>Expected Incremental Benefit</p>
+                <h2>
+                  {Number(
+                    allocationSummary.expected_incremental_benefit ?? 0
+                  ).toFixed(2)}
+                </h2>
+              </div>
+            </div>
+          )}
+
+          {!apiLoading && !apiError && !allocationSummary && (
+            <p>Allocation summary is not available.</p>
+          )}
+        </section>
+
+        {/* Optimized Discount Offers */}
         <section className="panel" id="optimization">
           <div className="section-heading">
             <div>
-              <h2>Optimized Discount Allocation</h2>
+              <h2>Optimized Discount Offers</h2>
+
               <p>
                 Customer-specific discount recommendations generated
                 by the optimization model.
@@ -396,42 +473,15 @@ function App() {
             </div>
           </div>
 
-          {offers.length === 0 ? (
+          {!apiLoading && !apiError && offers.length === 0 && (
             <p>
               No optimized offers available. Run the discount
               optimization script and check the Python API.
             </p>
-          ) : (
+          )}
+
+          {offers.length > 0 && (
             <>
-              {allocationSummary && (
-                <div className="stats-grid">
-                  <div className="stat-card">
-                    <p>Total Customers</p>
-                    <h2>
-                      {allocationSummary.total_customers ?? offers.length}
-                    </h2>
-                  </div>
-
-                  <div className="stat-card">
-                    <p>Total Discount Cost</p>
-                    <h2>
-                      {Number(
-                        allocationSummary.total_discount_cost ?? 0
-                      ).toLocaleString()}
-                    </h2>
-                  </div>
-
-                  <div className="stat-card">
-                    <p>Expected Benefit</p>
-                    <h2>
-                      {Number(
-                        allocationSummary.expected_incremental_benefit ?? 0
-                      ).toFixed(2)}
-                    </h2>
-                  </div>
-                </div>
-              )}
-
               <div className="table-wrapper">
                 <table>
                   <thead>
@@ -447,12 +497,13 @@ function App() {
                     {offers.slice(0, 50).map((offer, index) => (
                       <tr key={offer.customer_id || index}>
                         <td>{offer.customer_id}</td>
+
                         <td>
                           {Number(offer.previous_spend).toFixed(2)}
                         </td>
-                        <td>
-                          {offer.recommended_discount}
-                        </td>
+
+                        <td>{offer.recommended_discount}</td>
+
                         <td>
                           {Number(
                             offer.expected_incremental_benefit

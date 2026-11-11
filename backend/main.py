@@ -1,4 +1,5 @@
 
+from io import BytesIO
 from pathlib import Path
 
 import pandas as pd
@@ -6,6 +7,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.validate_data import validate_csv
+from backend.drift_detection import detect_data_drift
 
 
 # Project directory
@@ -212,6 +214,62 @@ async def upload_csv(file: UploadFile = File(...)):
         raise HTTPException(
             status_code=500,
             detail=f"Unable to process uploaded CSV: {str(exc)}"
+        )
+
+    finally:
+        await file.close()
+
+
+# 6. Check customer data drift
+@app.post("/api/check-drift")
+async def check_drift(file: UploadFile = File(...)):
+
+    try:
+        # Read uploaded CSV
+        contents = await file.read()
+
+        current_df = pd.read_csv(
+            BytesIO(contents)
+        )
+
+        # Load original cleaned training dataset
+        reference_path = (
+            ROOT / "data" / "customer_campaigns.csv"
+        )
+
+        if not reference_path.exists():
+            raise HTTPException(
+                status_code=500,
+                detail="Original training dataset not found"
+            )
+
+        reference_df = pd.read_csv(reference_path)
+
+        # Detect drift
+        result = detect_data_drift(
+            reference_df,
+            current_df
+        )
+
+        return {
+            "success": True,
+            "message": "Drift detection completed",
+            "result": result
+        }
+
+    except HTTPException:
+        raise
+
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc)
+        )
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Drift detection failed: {str(exc)}"
         )
 
     finally:
